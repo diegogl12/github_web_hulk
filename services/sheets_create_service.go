@@ -1,4 +1,4 @@
-package main
+package services
 
 import (
     "os"
@@ -6,9 +6,9 @@ import (
     "encoding/csv"
 )
 
-var data = [][]string{{"Line1", "Hello Readers of"}, {"Line2", "golangcode.com"}}
+var data = [][]string{{"Repository", "Hello Readers of"}, {"TimeStamp", "golangcode.com"}}
 
-func main() {
+func CreateAndWriteCsv() {
     file, err := os.Create("result.csv")
     checkError("Cannot create file", err)
     defer file.Close()
