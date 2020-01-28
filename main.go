@@ -8,14 +8,50 @@ import (
 	"log"
 	"encoding/csv"
 	"encoding/json"
-	"regexp"
 )
 
-func main() {
-	accessToken := "dc1a06bf8a54ff50ecbd1c38e0208e1b86093d28"
-	token := "token " + accessToken
+type Author struct {
+	Name string
+	Date string
+}
 
-	// result, _ := http.Get("https://api.github.com/users/diegogl12/repos")
+type Commit struct {
+	Message string
+	Author Author
+}
+
+type Branch struct {
+	Name string
+	Commit struct{
+		Sha string
+		Commit Commit
+	}
+}
+
+func main() {
+	branch := ParsePayload()
+	fmt.Printf("%+v",branch)
+
+	CreateAndWriteCsv(branch)
+}
+
+func ParsePayload() Branch{
+	var branch Branch
+
+	bodyBytes := callAPI()
+
+	err := json.Unmarshal(bodyBytes, &branch)
+	
+	if err != nil {
+		fmt.Println("error:", err)
+	}
+	
+	return branch
+}
+
+func callAPI() []byte{
+	accessToken := "6347414d9ed7eccfff96b5cff1d7b5458bdf0ff3"
+	token := "token " + accessToken
 
 	client := &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -23,10 +59,9 @@ func main() {
 		},
 	}
 
-	query, _ := http.NewRequest("GET", "https://api.github.com/users/diegogl12/repos", nil)
+	query, _ := http.NewRequest("GET", "https://api.github.com/repos/diegogl12/github_web_hulk/branches/master", nil)
 
 	parameters := query.URL.Query()
-	parameters.Add("sha","master")
 
 	query.Header.Add("Authorization", token)
 	query.URL.RawQuery = parameters.Encode()
@@ -34,32 +69,13 @@ func main() {
 	result, _ := client.Do(query)
 
 	bodyBytes, _ := ioutil.ReadAll(result.Body)
-	// bodyString := string(bodyBytes)
 
-	type Commit struct {
-		Sha string
-		Node_id string
-	}
-
-	var commits []Commit
-
-	err := json.Unmarshal(bodyBytes, &commits)
-	if err != nil {
-		fmt.Println("error:", err)
-	}
-
-	fmt.Printf("%+v",commits)
-
-	// CreateAndWriteCsv()
-
-	// var validURL = regexp.MustCompile(`repos\/(.*?)\/`)
-	// fmt.Println(validURL.Find([]byte(`https://api.github.com/repos/diegogl12/github_web_hulk/commits/550f0f858ae776b94d00b7729b1d0d79164e9c8e`)))
+	return bodyBytes
 }
 
+// var data = [][]string{{"Repository", "Hello Readers of"}, {"TimeStamp", "golangcode.com"}}
 
-var data = [][]string{{"Repository", "Hello Readers of"}, {"TimeStamp", "golangcode.com"}}
-
-func CreateAndWriteCsv() {
+func CreateAndWriteCsv(branch Branch) {
     file, err := os.Create("result.csv")
     checkError("Cannot create file", err)
     defer file.Close()
@@ -67,10 +83,15 @@ func CreateAndWriteCsv() {
     writer := csv.NewWriter(file)
     defer writer.Flush()
 
-    for _, value := range data {
-        err := writer.Write(value)
-        checkError("Cannot write to file", err)
-    }
+	branchString := toString(branch)
+
+	err = writer.Write(branchString)
+	checkError("Cannot write to file", err)
+}
+
+func toString(branch Branch) []string{
+	var response = []string {branch.Name, branch.Commit.Sha, branch.Commit.Commit.Message, branch.Commit.Commit.Author.Name, branch.Commit.Commit.Author.Date}
+	return response
 }
 
 func checkError(message string, err error) {
